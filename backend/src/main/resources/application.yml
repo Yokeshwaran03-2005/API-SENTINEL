@@ -8,7 +8,7 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
   datasource:
-    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://dpg-dae0130u01pc73:5432/apibackend_xu16}}
+    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://dpg-dae0l30u01pc73cju9hg-a:5432/apibackend_xu16}}
     username: ${DB_USERNAME:apibackend_xu16_user}
     password: ${DB_PASSWORD:t1VbJtpHtjNspejgnUiF0dRUg9Tuf9pD}
     driver-class-name: org.postgresql.Driver
