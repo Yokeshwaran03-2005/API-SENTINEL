@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service for Local Development
+  database:
+    image: mysql:8.0
+    container_name: api-sentinel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: apisentinel
+      MYSQL_USER: apisentinel_user
+      MYSQL_PASSWORD: apisentinel_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema:/docker-entrypoint-initdb.d
+    networks:
+      - sentinel-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  sentinel-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
