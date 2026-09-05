@@ -8,9 +8,10 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:apisentinel;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://dpg-dae0130u01pc73:5432/apibackend_xu16}}
+    username: ${DB_USERNAME:apibackend_xu16_user}
+    password: ${DB_PASSWORD:t1VbJtpHtjNspejgnUiF0dRUg9Tuf9pD}
+    driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: SentinelHikariPool
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
@@ -25,6 +26,7 @@ spring:
     show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
 
 # Spring Boot Actuator Configuration
