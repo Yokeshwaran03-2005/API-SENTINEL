@@ -39,7 +39,22 @@ try {
     # ==========================================
     Write-Host "Configuring Slide 1: Cover Slide..."
     $slide1 = $pres.Slides.Item(1)
-    $coverBadge = $slide1.Shapes.AddShape(5, 342, 670, 800, 50)
+    
+    # Remove "PPT FORMAT" and stray "(" shapes from the template
+    for ($idx = $slide1.Shapes.Count; $idx -ge 1; $idx--) {
+        $shp = $slide1.Shapes.Item($idx)
+        if ($shp.HasTextFrame -and $shp.TextFrame.HasText) {
+            $txt = $shp.TextFrame.TextRange.Text.Trim()
+            if ($txt -eq "PPT FORMAT" -or $txt -eq "(" -or $txt -like "*PPT FORMAT*") {
+                Write-Host "Deleting shape: $txt"
+                $shp.Delete()
+            }
+        }
+    }
+
+    $badgeWidth = 850
+    $badgeLeft = [int](($pres.PageSetup.SlideWidth - $badgeWidth) / 2)
+    $coverBadge = $slide1.Shapes.AddShape(5, $badgeLeft, 590, $badgeWidth, 52)
     $coverBadge.Fill.Solid()
     $coverBadge.Fill.ForeColor.RGB = $COLOR_CARD_BG
     $coverBadge.Line.ForeColor.RGB = $COLOR_GREEN
