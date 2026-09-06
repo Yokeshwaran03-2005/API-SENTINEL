@@ -16,24 +16,41 @@ import {
 import { StatCard } from "@/components/ui/StatCard";
 import { SeverityBadge, ActionBadge } from "@/components/ui/Badges";
 import { fetchSecurityStatistics } from "@/lib/api";
+import { mockStatistics } from "@/lib/mockData";
 import { SecurityStatisticsDto } from "@/types";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<SecurityStatisticsDto | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<SecurityStatisticsDto>(mockStatistics);
+  const [loading, setLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     const data = await fetchSecurityStatistics();
-    setStats(data);
+    if (data) {
+      setStats(data);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 15000);
-    return () => clearInterval(interval);
+
+    const onBackendOnline = () => {
+      loadData();
+    };
+    const onUrlChanged = () => {
+      loadData();
+    };
+    window.addEventListener("sentinel:backend-online", onBackendOnline);
+    window.addEventListener("sentinel:api-url-changed", onUrlChanged);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("sentinel:backend-online", onBackendOnline);
+      window.removeEventListener("sentinel:api-url-changed", onUrlChanged);
+    };
   }, []);
 
   const totalReq = stats?.totalRequests || 0;
@@ -80,7 +97,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total API Requests"
-          value={loading ? "..." : totalReq.toLocaleString()}
+          value={totalReq.toLocaleString()}
           subtitle="Intercepted across all routes"
           icon={Activity}
           variant="cyan"
@@ -88,7 +105,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Detected Threats"
-          value={loading ? "..." : (stats?.totalSecurityEvents || 0).toLocaleString()}
+          value={(stats?.totalSecurityEvents || 0).toLocaleString()}
           subtitle="OWASP & anomaly signatures"
           icon={ShieldAlert}
           variant="amber"
@@ -96,7 +113,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Blocked Requests"
-          value={loading ? "..." : blockedReq.toLocaleString()}
+          value={blockedReq.toLocaleString()}
           subtitle={`${blockedPct}% dropped at perimeter`}
           icon={Ban}
           variant="rose"
@@ -104,7 +121,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="High Risk Events"
-          value={loading ? "..." : highRiskCount.toLocaleString()}
+          value={highRiskCount.toLocaleString()}
           subtitle="Score >= 60 (High & Critical)"
           icon={Flame}
           variant="purple"

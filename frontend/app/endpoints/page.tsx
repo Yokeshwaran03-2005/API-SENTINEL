@@ -37,6 +37,14 @@ export default function EndpointsPage() {
 
   useEffect(() => {
     loadEndpoints();
+    const onOnline = () => loadEndpoints();
+    const onUrlChanged = () => loadEndpoints();
+    window.addEventListener("sentinel:backend-online", onOnline);
+    window.addEventListener("sentinel:api-url-changed", onUrlChanged);
+    return () => {
+      window.removeEventListener("sentinel:backend-online", onOnline);
+      window.removeEventListener("sentinel:api-url-changed", onUrlChanged);
+    };
   }, [loadEndpoints]);
 
   const handleRowClick = async (ep: ApiEndpointDto) => {

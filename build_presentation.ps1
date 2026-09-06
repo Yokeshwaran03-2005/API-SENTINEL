@@ -320,44 +320,86 @@ try {
     # ==========================================
     # SLIDE 8: REFERENCES (SLIDE 7)
     # ==========================================
-    Write-Host "Configuring Slide 8: References..."
+    Write-Host "Configuring Slide 8: Project Links (Live Demo & GitHub)..."
     $slide8 = $pres.Slides.Item(8)
 
-    $refColW = 395
-    $refGap = 35
-    $refStartX = 115
-    $refY = 140
-    $refH = 590
+    for ($idx = $slide8.Shapes.Count; $idx -ge 2; $idx--) {
+        $slide8.Shapes.Item($idx).Delete()
+    }
 
-    # Ref 1: Standards
-    $r1 = $slide8.Shapes.AddShape(5, $refStartX, $refY, $refColW, $refH)
-    $r1.Fill.Solid(); $r1.Fill.ForeColor.RGB = $COLOR_CARD_BG
-    $r1.Line.ForeColor.RGB = $COLOR_GREEN; $r1.Line.Weight = 1.5
-    $tf = $r1.TextFrame; $tf.MarginLeft = 25; $tf.MarginRight = 25; $tf.MarginTop = 25
-    $tr = $tf.TextRange
-    Append-FormattedText $tr "INDUSTRY STANDARDS & RESEARCH`r`r" "Antonio Bold" 18 $COLOR_GREEN $true | Out-Null
-    $rText1 = "- OWASP API Security Top 10 (2023)`r  Vulnerability standards covering BOLA, Broken Authentication, Object Property Level Authorization, and Unrestricted Resource Consumption.`r`r- NIST Special Publication 800-207`r  Zero Trust Architecture guidelines emphasizing per-request authentication, dynamic policy evaluation, and perimeter isolation.`r`r- MITRE ATT&CK Framework`r  Tactics, Techniques, and Procedures (TTPs) for Web Application and API exploitation vectors."
-    Append-FormattedText $tr $rText1 "Segoe UI" 13.5 $COLOR_TEXT_BODY $false | Out-Null
+    $cardW = 605
+    $cardGap = 45
+    $cardStartX = 115
+    $cardY = 150
+    $cardH = 570
 
-    # Ref 2: Tech
-    $r2 = $slide8.Shapes.AddShape(5, $refStartX + $refColW + $refGap, $refY, $refColW, $refH)
-    $r2.Fill.Solid(); $r2.Fill.ForeColor.RGB = $COLOR_CARD_BG
-    $r2.Line.ForeColor.RGB = $COLOR_CYAN; $r2.Line.Weight = 1.5
-    $tf = $r2.TextFrame; $tf.MarginLeft = 25; $tf.MarginRight = 25; $tf.MarginTop = 25
-    $tr = $tf.TextRange
-    Append-FormattedText $tr "TECHNOLOGY FRAMEWORKS & SPECS`r`r" "Antonio Bold" 18 $COLOR_CYAN $true | Out-Null
-    $rText2 = "- Spring Framework 6 & Spring Boot 3.2`r  High-performance enterprise Java reactive and servlet filter architecture; Spring Data JPA and Spring Security.`r`r- Next.js 14 App Router & React 18`r  Modern server-rendered web application framework, edge runtime routing, and Tailwind CSS design system.`r`r- PostgreSQL 16 & HikariCP`r  ACID-compliant relational persistence, JSONB document querying, and ultra-low latency connection pooling."
-    Append-FormattedText $tr $rText2 "Segoe UI" 13.5 $COLOR_TEXT_BODY $false | Out-Null
+    # ------------------------------------------
+    # Card 1: Live Demo (Left)
+    # ------------------------------------------
+    $c1 = $slide8.Shapes.AddShape(5, $cardStartX, $cardY, $cardW, $cardH)
+    $c1.Fill.Solid(); $c1.Fill.ForeColor.RGB = $COLOR_CARD_BG
+    $c1.Line.ForeColor.RGB = $COLOR_GREEN; $c1.Line.Weight = 2
+    
+    # Header 1
+    $hBox1 = $slide8.Shapes.AddTextbox(1, $cardStartX + 30, $cardY + 25, 545, 65)
+    $tr = $hBox1.TextFrame.TextRange
+    $tr.ParagraphFormat.Alignment = 1
+    Append-FormattedText $tr "LIVE DEMO PLATFORM`r" "Antonio Bold" 24 $COLOR_GREEN $true | Out-Null
+    Append-FormattedText $tr "Production Security Operations Center (SOC) on Vercel" "Segoe UI" 13.5 $COLOR_CYAN $true | Out-Null
 
-    # Ref 3: Project Links
-    $r3 = $slide8.Shapes.AddShape(5, $refStartX + ($refColW + $refGap) * 2, $refY, $refColW, $refH)
-    $r3.Fill.Solid(); $r3.Fill.ForeColor.RGB = $COLOR_CARD_BG
-    $r3.Line.ForeColor.RGB = $COLOR_GREEN; $r3.Line.Weight = 1.5
-    $tf = $r3.TextFrame; $tf.MarginLeft = 25; $tf.MarginRight = 25; $tf.MarginTop = 25
-    $tr = $tf.TextRange
-    Append-FormattedText $tr "PROJECT LINKS & DEPLOYMENTS`r`r" "Antonio Bold" 18 $COLOR_GREEN $true | Out-Null
-    $rText3 = "- GitHub Monorepo:`r  https://github.com/Yokeshwaran03-2005/API-SENTINEL`r  Complete source code, Docker configs, and setup documentation.`r`r- Live Frontend SOC Dashboard:`r  https://apisentinel-psi.vercel.app`r  Production deployment on Vercel.`r`r- Live Backend API & Health Check:`r  https://api-backend-wc8m.onrender.com/api/health`r  Production deployment on Render."
-    Append-FormattedText $tr $rText3 "Segoe UI" 13.5 $COLOR_TEXT_BODY $false | Out-Null
+    # Link Button 1
+    $btn1 = $slide8.Shapes.AddShape(5, $cardStartX + 30, $cardY + 100, 545, 50)
+    $btn1.Fill.Solid(); $btn1.Fill.ForeColor.RGB = $COLOR_DARK_BG
+    $btn1.Line.ForeColor.RGB = $COLOR_GREEN; $btn1.Line.Weight = 1.5
+    $tr = $btn1.TextFrame.TextRange
+    $tr.ParagraphFormat.Alignment = 2
+    Append-FormattedText $tr "https://apisentinel-psi.vercel.app" "Segoe UI" 16 $COLOR_WHITE $true | Out-Null
+    try {
+        $btn1.ActionSettings.Item(1).Action = 7
+        $btn1.ActionSettings.Item(1).Hyperlink.Address = "https://apisentinel-psi.vercel.app"
+    } catch {}
+
+    # Features 1
+    $fBox1 = $slide8.Shapes.AddTextbox(1, $cardStartX + 30, $cardY + 165, 545, 380)
+    $tr = $fBox1.TextFrame.TextRange
+    $tr.ParagraphFormat.Alignment = 1
+    Append-FormattedText $tr "PLATFORM CAPABILITIES:`r`r" "Antonio Bold" 15 $COLOR_GREEN $true | Out-Null
+    $demoFeatures = "- Real-Time SOC Dashboard: Instant visibility into active threats, request verdicts, risk scores, and traffic health.`r`r- Autonomous Policy Mitigation: Dynamic zero-trust blocking (HTTP 403) and rate limiting (HTTP 429).`r`r- Interactive Attack Simulator: Test live OWASP payloads (SQLi, IDOR/BOLA, Brute Force) against protected endpoints.`r`r- Forensic Request Inspector: Deep inspection of headers, masked credentials, and cached payload bodies.`r`r- Cloud Deployment: High-availability edge hosting on Vercel."
+    Append-FormattedText $tr $demoFeatures "Segoe UI" 13.5 $COLOR_TEXT_BODY $false | Out-Null
+
+    # ------------------------------------------
+    # Card 2: GitHub Repository (Right)
+    # ------------------------------------------
+    $c2 = $slide8.Shapes.AddShape(5, $cardStartX + $cardW + $cardGap, $cardY, $cardW, $cardH)
+    $c2.Fill.Solid(); $c2.Fill.ForeColor.RGB = $COLOR_CARD_BG
+    $c2.Line.ForeColor.RGB = $COLOR_CYAN; $c2.Line.Weight = 2
+
+    # Header 2
+    $hBox2 = $slide8.Shapes.AddTextbox(1, $cardStartX + $cardW + $cardGap + 30, $cardY + 25, 545, 65)
+    $tr = $hBox2.TextFrame.TextRange
+    $tr.ParagraphFormat.Alignment = 1
+    Append-FormattedText $tr "GITHUB REPOSITORY`r" "Antonio Bold" 24 $COLOR_CYAN $true | Out-Null
+    Append-FormattedText $tr "Public Monorepo & Implementation Source Code" "Segoe UI" 13.5 $COLOR_GREEN $true | Out-Null
+
+    # Link Button 2
+    $btn2 = $slide8.Shapes.AddShape(5, $cardStartX + $cardW + $cardGap + 30, $cardY + 100, 545, 50)
+    $btn2.Fill.Solid(); $btn2.Fill.ForeColor.RGB = $COLOR_DARK_BG
+    $btn2.Line.ForeColor.RGB = $COLOR_CYAN; $btn2.Line.Weight = 1.5
+    $tr = $btn2.TextFrame.TextRange
+    $tr.ParagraphFormat.Alignment = 2
+    Append-FormattedText $tr "https://github.com/Yokeshwaran03-2005/API-SENTINEL" "Segoe UI" 14.5 $COLOR_WHITE $true | Out-Null
+    try {
+        $btn2.ActionSettings.Item(1).Action = 7
+        $btn2.ActionSettings.Item(1).Hyperlink.Address = "https://github.com/Yokeshwaran03-2005/API-SENTINEL"
+    } catch {}
+
+    # Features 2
+    $fBox2 = $slide8.Shapes.AddTextbox(1, $cardStartX + $cardW + $cardGap + 30, $cardY + 165, 545, 380)
+    $tr = $fBox2.TextFrame.TextRange
+    $tr.ParagraphFormat.Alignment = 1
+    Append-FormattedText $tr "REPOSITORY CONTENTS:`r`r" "Antonio Bold" 15 $COLOR_CYAN $true | Out-Null
+    $repoFeatures = "- Unified Monorepo: Houses complete /backend, /frontend, /database, and container orchestration.`r`r- Backend Gateway: Java 17 + Spring Boot 3.2 zero-trust servlet filter chain, heuristics & scoring engine.`r`r- Frontend Console: Next.js 14 App Router, TypeScript, Tailwind CSS, and Lucide icons.`r`r- Comprehensive Documentation: Architecture diagrams, threat model specs, and local Docker Compose setup.`r`r- Official Hackathon Submission: Built for INIT'26 by Team Phoenix."
+    Append-FormattedText $tr $repoFeatures "Segoe UI" 13.5 $COLOR_TEXT_BODY $false | Out-Null
 
     Write-Host "Saving presentation..."
     $pres.Save()

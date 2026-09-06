@@ -25,7 +25,7 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${sentinel.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,https://apisentinel-psi.vercel.app,https://*.vercel.app}")
+    @Value("${sentinel.cors.allowed-origins:*}")
     private String allowedOrigins;
 
     @Value("${sentinel.cors.allowed-methods:GET,POST,PUT,DELETE,PATCH,OPTIONS}")
@@ -72,6 +72,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
         configuration.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
+        configuration.setExposedHeaders(List.of("*"));
         configuration.setAllowCredentials(allowCredentials);
         configuration.setMaxAge(3600L);
 

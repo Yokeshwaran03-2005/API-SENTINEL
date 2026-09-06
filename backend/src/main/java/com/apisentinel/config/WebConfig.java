@@ -14,7 +14,7 @@ import java.util.Arrays;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${sentinel.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,https://apisentinel-psi.vercel.app,https://*.vercel.app}")
+    @Value("${sentinel.cors.allowed-origins:*}")
     private String allowedOrigins;
 
     @Value("${sentinel.cors.allowed-methods:GET,POST,PUT,DELETE,PATCH,OPTIONS}")
@@ -37,6 +37,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns(origins)
                 .allowedMethods(allowedMethods.split(","))
                 .allowedHeaders(allowedHeaders.split(","))
+                .exposedHeaders("*")
                 .allowCredentials(allowCredentials)
                 .maxAge(3600);
     }

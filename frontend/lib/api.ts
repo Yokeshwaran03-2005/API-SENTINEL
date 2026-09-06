@@ -20,41 +20,200 @@ import {
 } from "./mockData";
 import { getRiskLevelFromScore } from "./utils";
 
-const API_BASE_URL =
+const DEFAULT_API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://api-backend-wc8m.onrender.com";
 
+let customApiBaseUrl: string | null = null;
+
 export function getApiBaseUrl(): string {
-  return API_BASE_URL;
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("sentinel_api_url");
+    if (stored) return stored.trim();
+  }
+  return customApiBaseUrl || DEFAULT_API_URL;
 }
 
-// Check backend connectivity
-export async function checkBackendHealth(): Promise<{
+export function setApiBaseUrl(url: string): void {
+  const clean = url.trim().replace(/\/+$/, "");
+  if (typeof window !== "undefined") {
+    localStorage.setItem("sentinel_api_url", clean);
+  }
+  customApiBaseUrl = clean;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("sentinel:api-url-changed", { detail: clean })
+    );
+  }
+}
+
+export function resetApiBaseUrl(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("sentinel_api_url");
+  }
+  customApiBaseUrl = null;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("sentinel:api-url-changed", { detail: DEFAULT_API_URL })
+    );
+  }
+}
+
+export interface HealthStatus {
   connected: boolean;
   statusText: string;
-}> {
+  isWakingUp?: boolean;
+  latencyMs?: number;
+}
+
+// Fetch with configurable timeout helper
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 8000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(`${API_BASE_URL}/api/health`, {
-      method: "GET",
+    const res = await fetch(url, {
+      ...options,
       signal: controller.signal,
     });
+    return res;
+  } finally {
     clearTimeout(timeoutId);
-    if (res.ok) {
-      return { connected: true, statusText: "Online (Spring Boot)" };
-    }
-    return { connected: false, statusText: `HTTP ${res.status}` };
-  } catch {
-    return { connected: false, statusText: "Offline / Fallback Mode" };
   }
+}
+
+// Check backend connectivity with cold-start detection and generous timeout
+export async function checkBackendHealth(
+  timeoutMs = 12000
+): Promise<HealthStatus> {
+  const base = getApiBaseUrl();
+  const startTime = performance.now();
+
+  try {
+    const res = await fetchWithTimeout(
+      `${base}/api/health`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      },
+      timeoutMs
+    );
+
+    const latencyMs = Math.round(performance.now() - startTime);
+
+    if (res.ok) {
+      return {
+        connected: true,
+        statusText: "Online (Spring Boot)",
+        isWakingUp: false,
+        latencyMs,
+      };
+    }
+    return {
+      connected: false,
+      statusText: `HTTP ${res.status}`,
+      isWakingUp: false,
+      latencyMs,
+    };
+  } catch (err: any) {
+    const elapsed = Math.round(performance.now() - startTime);
+    return {
+      connected: false,
+      statusText: "Offline / Fallback Mode",
+      isWakingUp: false,
+      latencyMs: elapsed,
+    };
+  }
+}
+
+// Actively wake up Render free-tier instance (retries every 3.5s up to maxWaitMs)
+export async function wakeUpBackend(
+  onProgress?: (attempt: number, message: string) => void,
+  maxWaitMs = 45000
+): Promise<HealthStatus> {
+  const startTime = performance.now();
+  let attempt = 1;
+
+  while (performance.now() - startTime < maxWaitMs) {
+    if (onProgress) {
+      onProgress(
+        attempt,
+        attempt === 1
+          ? "Connecting to backend..."
+          : `Waking up Render backend... (attempt ${attempt})`
+      );
+    }
+
+    try {
+      const res = await checkBackendHealth(7000);
+      if (res.connected) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("sentinel:backend-online"));
+        }
+        return res;
+      }
+    } catch {
+      // ignore and retry
+    }
+
+    attempt++;
+    // wait 3.5s before next attempt
+    await new Promise((r) => setTimeout(r, 3500));
+  }
+
+  return {
+    connected: false,
+    statusText: "Offline / Fallback Mode",
+    isWakingUp: false,
+  };
+}
+
+// Client-side keep-alive ping (keeps Render instance warm during demo/use)
+let keepAliveTimer: any = null;
+
+export function startKeepAlivePing(): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const ping = async () => {
+    try {
+      const base = getApiBaseUrl();
+      await fetchWithTimeout(
+        `${base}/api/health`,
+        { method: "GET", cache: "no-store" },
+        6000
+      );
+    } catch {
+      // background silent keep-alive
+    }
+  };
+
+  const onFocus = () => {
+    ping();
+  };
+  window.addEventListener("focus", onFocus);
+
+  // Ping every 9 minutes (Render sleeps after 15 min of inactivity)
+  if (keepAliveTimer) clearInterval(keepAliveTimer);
+  keepAliveTimer = setInterval(ping, 9 * 60 * 1000);
+
+  return () => {
+    window.removeEventListener("focus", onFocus);
+    if (keepAliveTimer) clearInterval(keepAliveTimer);
+  };
 }
 
 // 1. Dashboard Statistics
 export async function fetchSecurityStatistics(): Promise<SecurityStatisticsDto> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/security/statistics`, {
-      cache: "no-store",
-    });
+    const base = getApiBaseUrl();
+    const res = await fetchWithTimeout(
+      `${base}/api/security/statistics`,
+      { cache: "no-store" },
+      8000
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -78,7 +237,8 @@ export async function fetchSecurityEvents(
   params: EventFilterParams = {}
 ): Promise<PagedResponse<SecurityEventDto>> {
   try {
-    const url = new URL(`${API_BASE_URL}/api/security/events`);
+    const base = getApiBaseUrl();
+    const url = new URL(`${base}/api/security/events`);
     if (params.severity) url.searchParams.set("severity", params.severity);
     if (params.threatType) url.searchParams.set("threatType", params.threatType);
     if (params.endpoint) url.searchParams.set("endpoint", params.endpoint);
@@ -87,7 +247,7 @@ export async function fetchSecurityEvents(
     url.searchParams.set("page", String(params.page || 0));
     url.searchParams.set("size", String(params.size || 20));
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetchWithTimeout(url.toString(), { cache: "no-store" }, 8000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -134,14 +294,19 @@ export async function fetchSecurityEventById(
   id: number | string
 ): Promise<SecurityEventDetailDto | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/security/events/${id}`, {
-      cache: "no-store",
-    });
+    const base = getApiBaseUrl();
+    const res = await fetchWithTimeout(
+      `${base}/api/security/events/${id}`,
+      { cache: "no-store" },
+      8000
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
     console.warn("fetchSecurityEventById fallback:", err);
-    const found = mockSecurityEvents.find((e) => String(e.id) === String(id) || e.eventId === id);
+    const found = mockSecurityEvents.find(
+      (e) => String(e.id) === String(id) || e.eventId === id
+    );
     if (found) {
       return {
         ...found,
@@ -173,13 +338,17 @@ export async function fetchEndpoints(
   params: EndpointFilterParams = {}
 ): Promise<ApiEndpointDto[]> {
   try {
-    const url = new URL(`${API_BASE_URL}/api/endpoints`);
-    if (params.active !== undefined) url.searchParams.set("active", String(params.active));
-    if (params.sensitivityLevel) url.searchParams.set("sensitivityLevel", params.sensitivityLevel);
-    if (params.httpMethod) url.searchParams.set("httpMethod", params.httpMethod);
+    const base = getApiBaseUrl();
+    const url = new URL(`${base}/api/endpoints`);
+    if (params.active !== undefined)
+      url.searchParams.set("active", String(params.active));
+    if (params.sensitivityLevel)
+      url.searchParams.set("sensitivityLevel", params.sensitivityLevel);
+    if (params.httpMethod)
+      url.searchParams.set("httpMethod", params.httpMethod);
     if (params.search) url.searchParams.set("search", params.search);
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetchWithTimeout(url.toString(), { cache: "no-store" }, 8000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return Array.isArray(data) ? data : data.content || [];
@@ -190,7 +359,9 @@ export async function fetchEndpoints(
       filtered = filtered.filter((e) => e.active === params.active);
     }
     if (params.sensitivityLevel) {
-      filtered = filtered.filter((e) => e.sensitivityLevel === params.sensitivityLevel);
+      filtered = filtered.filter(
+        (e) => e.sensitivityLevel === params.sensitivityLevel
+      );
     }
     if (params.httpMethod) {
       filtered = filtered.filter((e) => e.httpMethod === params.httpMethod);
@@ -211,9 +382,12 @@ export async function fetchEndpointById(
   id: number | string
 ): Promise<ApiEndpointDto | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/endpoints/${id}`, {
-      cache: "no-store",
-    });
+    const base = getApiBaseUrl();
+    const res = await fetchWithTimeout(
+      `${base}/api/endpoints/${id}`,
+      { cache: "no-store" },
+      8000
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {
@@ -236,16 +410,19 @@ export async function fetchRequests(
   params: RequestFilterParams = {}
 ): Promise<PagedResponse<ApiRequestDto>> {
   try {
-    const url = new URL(`${API_BASE_URL}/api/requests`);
+    const base = getApiBaseUrl();
+    const url = new URL(`${base}/api/requests`);
     if (params.path) url.searchParams.set("path", params.path);
-    if (params.httpMethod) url.searchParams.set("httpMethod", params.httpMethod);
+    if (params.httpMethod)
+      url.searchParams.set("httpMethod", params.httpMethod);
     if (params.sourceIp) url.searchParams.set("sourceIp", params.sourceIp);
-    if (params.authStatus) url.searchParams.set("authStatus", params.authStatus);
+    if (params.authStatus)
+      url.searchParams.set("authStatus", params.authStatus);
     if (params.verdict) url.searchParams.set("verdict", params.verdict);
     url.searchParams.set("page", String(params.page || 0));
     url.searchParams.set("size", String(params.size || 20));
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetchWithTimeout(url.toString(), { cache: "no-store" }, 8000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -261,7 +438,9 @@ export async function fetchRequests(
       filtered = filtered.filter((r) => r.sourceIp.includes(params.sourceIp!));
     }
     if (params.path) {
-      filtered = filtered.filter((r) => r.path.toLowerCase().includes(params.path!.toLowerCase()));
+      filtered = filtered.filter((r) =>
+        r.path.toLowerCase().includes(params.path!.toLowerCase())
+      );
     }
     return {
       content: filtered,
@@ -279,23 +458,31 @@ export async function fetchRequestById(
   id: number | string
 ): Promise<ApiRequestDetailDto | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/requests/${id}`, {
-      cache: "no-store",
-    });
+    const base = getApiBaseUrl();
+    const res = await fetchWithTimeout(
+      `${base}/api/requests/${id}`,
+      { cache: "no-store" },
+      8000
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {
-    const found = mockRequests.find((r) => String(r.id) === String(id) || r.requestId === id);
+    const found = mockRequests.find(
+      (r) => String(r.id) === String(id) || r.requestId === id
+    );
     if (found) {
       return {
         ...found,
         headers: {
-          "host": "localhost:8080",
+          host: "localhost:8080",
           "user-agent": found.userAgent,
-          "accept": "application/json",
+          accept: "application/json",
         },
         queryParams: {},
-        verdictReason: found.verdict === "ALLOWED" ? "Traffic passed all security rules." : "Risk threshold breached.",
+        verdictReason:
+          found.verdict === "ALLOWED"
+            ? "Traffic passed all security rules."
+            : "Risk threshold breached.",
       };
     }
     return null;
@@ -305,9 +492,12 @@ export async function fetchRequestById(
 // 5. Security Policies
 export async function fetchPolicies(): Promise<SecurityPolicyDto[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/policies`, {
-      cache: "no-store",
-    });
+    const base = getApiBaseUrl();
+    const res = await fetchWithTimeout(
+      `${base}/api/policies`,
+      { cache: "no-store" },
+      8000
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return Array.isArray(data) ? data : data.content || [];
@@ -321,16 +511,23 @@ export async function updatePolicy(
   id: number,
   payload: UpdateSecurityPolicyRequest
 ): Promise<SecurityPolicyDto> {
-  const res = await fetch(`${API_BASE_URL}/api/policies/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/policies/${id}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+    10000
+  );
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    const errData = await res
+      .json()
+      .catch(() => ({ message: `HTTP ${res.status}` }));
     throw new Error(errData.message || `Failed to update policy (${res.status})`);
   }
 
@@ -352,10 +549,10 @@ export async function executeSimulationStep(
   let evidence = "";
 
   try {
-    // Construct real endpoint call to backend
+    const base = getApiBaseUrl();
     const endpointUrl = scenario.defaultEndpoint.startsWith("http")
       ? scenario.defaultEndpoint
-      : `${API_BASE_URL}${scenario.defaultEndpoint}`;
+      : `${base}${scenario.defaultEndpoint}`;
 
     const headers: Record<string, string> = {
       "X-Sentinel-Simulation": "true",
@@ -372,20 +569,20 @@ export async function executeSimulationStep(
       fetchOptions.body = scenario.samplePayload || "{}";
     }
 
-    const res = await fetch(endpointUrl, fetchOptions);
+    const res = await fetchWithTimeout(endpointUrl, fetchOptions, 8000);
     statusCode = res.status;
     const latency = Math.round(performance.now() - startTime);
 
     if (scenario.threatType === "SQL_INJECTION") {
       detected = true;
-      score = 30 + (index * 5);
+      score = 30 + index * 5;
       if (scenario.id === "sqli-union") score = 85;
       action = score >= 80 ? "BLOCK" : score >= 60 ? "RATE_LIMIT" : "MONITOR";
       reason = `SQL injection vector verified: ${scenario.samplePayload}`;
       evidence = `Query syntax / tautology matched on ${scenario.defaultEndpoint}`;
     } else if (scenario.threatType === "AUTH_ABUSE") {
       detected = true;
-      score = 40 + (index * 10);
+      score = 40 + index * 10;
       action = score >= 80 ? "BLOCK" : "RATE_LIMIT";
       reason = `Consecutive authentication attempt #${index + 1} with invalid credentials`;
       evidence = `Failed auth count: ${index + 1}`;
@@ -393,13 +590,17 @@ export async function executeSimulationStep(
       detected = index >= 2;
       score = index >= 2 ? 65 : 15;
       action = detected ? "RATE_LIMIT" : "ALLOW";
-      reason = detected ? "Request frequency exceeded configured rate limit quota" : "Within quota";
+      reason = detected
+        ? "Request frequency exceeded configured rate limit quota"
+        : "Within quota";
       evidence = `Burst request #${index + 1}`;
     } else if (scenario.threatType === "ENUMERATION") {
       detected = index >= 1;
       score = index >= 1 ? 50 : 10;
       action = detected ? "MONITOR" : "ALLOW";
-      reason = detected ? "Sequential resource identifier access anomaly detected" : "Normal access";
+      reason = detected
+        ? "Sequential resource identifier access anomaly detected"
+        : "Normal access";
       evidence = `Iterated ID: ${index + 1001}`;
     } else {
       detected = false;
@@ -433,8 +634,22 @@ export async function executeSimulationStep(
   } catch (err: any) {
     // Offline / Network error simulation fallback
     const latency = Math.round(performance.now() - startTime);
-    const score = scenario.expectedSeverity === "CRITICAL" ? 90 : scenario.expectedSeverity === "HIGH" ? 70 : scenario.expectedSeverity === "MEDIUM" ? 45 : 10;
-    const action = score >= 80 ? "BLOCK" : score >= 60 ? "RATE_LIMIT" : score >= 30 ? "MONITOR" : "ALLOW";
+    const score =
+      scenario.expectedSeverity === "CRITICAL"
+        ? 90
+        : scenario.expectedSeverity === "HIGH"
+        ? 70
+        : scenario.expectedSeverity === "MEDIUM"
+        ? 45
+        : 10;
+    const action =
+      score >= 80
+        ? "BLOCK"
+        : score >= 60
+        ? "RATE_LIMIT"
+        : score >= 30
+        ? "MONITOR"
+        : "ALLOW";
 
     return {
       id: `sim-${Date.now()}-${index}`,

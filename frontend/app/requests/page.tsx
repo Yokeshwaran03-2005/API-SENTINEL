@@ -44,6 +44,14 @@ export default function RequestsPage() {
 
   useEffect(() => {
     loadRequests();
+    const onOnline = () => loadRequests();
+    const onUrlChanged = () => loadRequests();
+    window.addEventListener("sentinel:backend-online", onOnline);
+    window.addEventListener("sentinel:api-url-changed", onUrlChanged);
+    return () => {
+      window.removeEventListener("sentinel:backend-online", onOnline);
+      window.removeEventListener("sentinel:api-url-changed", onUrlChanged);
+    };
   }, [loadRequests]);
 
   const handleRowClick = async (req: ApiRequestDto) => {
