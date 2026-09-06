@@ -153,3 +153,4 @@ API-SENTINEL provides comprehensive protection against the OWASP API Security To
 * **Object Enumeration (BOLA/IDOR)**: Pattern detection on sequential resource scraping.
 * **Excessive Data Exposure**: Sensitive data tokenization and payload inspection.
 * **Autonomous Policy Enforcement**: Instant IP blocking and dynamic threat scoring.
+# API-SENTINEL
