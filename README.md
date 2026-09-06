@@ -30,11 +30,11 @@ The platform uses a decoupled, high-performance distributed architecture designe
 * **Monorepo**: Single unified repository housing both `frontend/` and `backend/` services.
 
 ```mermaid
-graph LR
-    User[Client / Browser] -->|HTTPS / WSS| Frontend[Next.js Frontend (Vercel)]
-    Frontend -->|REST API / Security Telemetry| Backend[Spring Boot Backend (Render)]
-    Backend -->|JDBC Connection Pool| Database[(PostgreSQL / MySQL Cloud DB)]
-    Backend -->|Traffic Interception| Gateway[API Security Gateway Engine]
+flowchart LR
+    User["Client / Browser"] -->|"HTTPS / WSS"| Frontend["Next.js Frontend (Vercel)"]
+    Frontend -->|"REST API / Telemetry"| Backend["Spring Boot Backend (Render)"]
+    Backend -->|"JDBC Pool"| Database[("PostgreSQL / MySQL DB")]
+    Backend -->|"Traffic Interception"| Gateway["API Security Gateway"]
 ```
 
 ---
@@ -153,4 +153,3 @@ API-SENTINEL provides comprehensive protection against the OWASP API Security To
 * **Object Enumeration (BOLA/IDOR)**: Pattern detection on sequential resource scraping.
 * **Excessive Data Exposure**: Sensitive data tokenization and payload inspection.
 * **Autonomous Policy Enforcement**: Instant IP blocking and dynamic threat scoring.
-# API-SENTINEL
