@@ -21,7 +21,7 @@ import {
 import { getRiskLevelFromScore } from "./utils";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_URL || "https://api-backend-wc8m.onrender.com";
 
 export function getApiBaseUrl(): string {
   return API_BASE_URL;
