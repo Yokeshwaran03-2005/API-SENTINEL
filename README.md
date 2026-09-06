@@ -17,6 +17,10 @@ API SENTINEL is an enterprise-grade real-time API security, threat detection, an
 * **Live Web Dashboard (Frontend)**: [https://apisentinel-psi.vercel.app](https://apisentinel-psi.vercel.app)
 * **Live API Gateway (Backend)**: [https://api-backend-wc8m.onrender.com](https://api-backend-wc8m.onrender.com)
 * **API Health Check**: [https://api-backend-wc8m.onrender.com/api/health](https://api-backend-wc8m.onrender.com/api/health)
+* 📄 **[Download Official Presentation (PDF)](https://github.com/Yokeshwaran03-2005/API-SENTINEL/raw/main/Team_Phoenix_INIT26_Presentation.pdf)**
+* 📊 **[Download Official Presentation (PowerPoint .pptx)](https://github.com/Yokeshwaran03-2005/API-SENTINEL/raw/main/Team_Phoenix_INIT26_Presentation.pptx)**
+
+> **Note**: To view or download the presentation on GitHub without in-browser preview errors, use the direct links above or click the **Download raw file** (`↓`) button on GitHub.
 
 ---
 

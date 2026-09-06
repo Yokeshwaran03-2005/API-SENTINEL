@@ -1,0 +1,7 @@
+# Git Attributes for Binary Presentation and Asset Files
+*.pdf binary
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
